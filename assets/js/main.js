@@ -15,10 +15,47 @@ function headerAddActive() {
             header.classList.remove('active');
         }
     }
+}
 
+function setWidthScrollBar() {
+    let div = document.createElement('div');
+
+    div.style.position = 'absolute';
+    div.style.overflowY = 'scroll';
+    div.style.width = '50px';
+    div.style.height = '50px';
+
+    document.body.append(div);
+    let scrollWidth = div.offsetWidth - div.clientWidth;
+
+    div.remove();
+
+    return scrollWidth;
+}
+
+function menuOpen(menuSelector) {
+    menuSelector.classList.add('active');
+    document.body.classList.add('lock');
+    document.querySelector('html').style.paddingRight = setWidthScrollBar() + 'px';
+    document.querySelectorAll('.padding-lock').forEach(function (elem) {
+        elem.style.paddingRight = setWidthScrollBar() + 'px';
+    });
+}
+
+function menuClose(menuSelector) {
+    menuSelector.classList.remove('active');
+    document.body.classList.remove('lock');
+    document.querySelector('html').style.paddingRight = 0;
+    document.querySelectorAll('.padding-lock').forEach(function (elem) {
+        elem.style.paddingRight = 0;
+    });
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    const mobileMenu = document.querySelector('.menu-dropdown');
+    const openMenuBtns = document.querySelectorAll('.open-menu');
+    const closeMenuBtns = document.querySelectorAll('.close-menu');
+
     headerAddActive();
 
     window.addEventListener('scroll', function () {
@@ -240,7 +277,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
-        hideTabsContent({list_tabs, list_buttons}) {
+        hideTabsContent({ list_tabs, list_buttons }) {
             list_buttons.forEach((el) => {
                 el.classList.remove('active');
             });
@@ -249,8 +286,8 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
-        showTabsContent({list_tabs, list_buttons, index}) {
-            this.hideTabsContent({list_tabs, list_buttons});
+        showTabsContent({ list_tabs, list_buttons, index }) {
+            this.hideTabsContent({ list_tabs, list_buttons });
 
             if (list_tabs[index])
                 list_tabs[index].classList.add('active');
@@ -261,4 +298,215 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     new Tabs().initTabs();
+
+    // Scroll to block
+    document.querySelectorAll('a[href^="#"]').forEach(link => {
+
+        link.addEventListener('click', function (e) {
+            e.preventDefault();
+
+            let href = this.getAttribute('href').substring(1);
+
+            const scrollTarget = document.getElementById(href);
+
+            // const topOffset = document.querySelector('.scrollto').offsetHeight;
+            const topOffset = 88;
+            const elementPosition = scrollTarget.getBoundingClientRect().top;
+            const offsetPosition = elementPosition - topOffset;
+
+            menuClose(mobileMenu);
+
+            window.scrollBy({
+                top: offsetPosition,
+                behavior: 'smooth'
+            });
+        });
+    });
+
+    openMenuBtns.forEach(function (openMenuBtn) {
+        openMenuBtn.addEventListener('click', function () {
+            menuOpen(mobileMenu);
+        })
+    });
+
+    closeMenuBtns.forEach(function (closeMenuBtn) {
+        closeMenuBtn.addEventListener('click', function () {
+            menuClose(mobileMenu);
+        })
+    });
+
+    // Popups
+    function popupClose(popupActive) {
+        popupActive.querySelector('.form').dataset.additional = "Неизвестная форма";
+        popupActive.classList.remove('open');
+        document.body.classList.remove('lock');
+        document.querySelector('html').style.paddingRight = 0;
+        document.querySelectorAll('.padding-lock').forEach(function (elem) {
+            elem.style.paddingRight = 0;
+        });
+    }
+
+    const popupOpenBtns = document.querySelectorAll('.popup-btn');
+    const popups = document.querySelectorAll('.popup');
+    const closePopupBtns = document.querySelectorAll('.close-popup');
+
+    closePopupBtns.forEach(function (el) {
+        el.addEventListener('click', function (e) {
+            popupClose(e.target.closest('.popup'));
+        });
+    });
+
+    popupOpenBtns.forEach(function (el) {
+        el.addEventListener('click', function (e) {
+            const path = e.currentTarget.dataset.path;
+            const currentPopup = document.querySelector(`[data-target="${path}"]`);
+            const currentForm = currentPopup.querySelector('.form');
+
+            popups.forEach(function (popup) {
+                popupClose(popup);
+                popup.addEventListener('click', function (e) {
+                    if (!e.target.closest('.popup__content')) {
+                        popupClose(e.target.closest('.popup'));
+                    }
+                });
+            });
+
+            menuClose(mobileMenu);
+
+            currentForm.dataset.additional = el.dataset.additional;
+            currentPopup.classList.add('open');
+            document.body.classList.add('lock');
+            document.querySelector('html').style.paddingRight = setWidthScrollBar() + 'px';
+            document.querySelectorAll('.padding-lock').forEach(function (elem) {
+                elem.style.paddingRight = setWidthScrollBar() + 'px';
+            });
+        });
+    });
+
+    // inputmask for tel
+    let telSelector = document.querySelectorAll("input[type='tel']");
+    let im = new Inputmask("+7 (999) 999-99-99");
+    telSelector.forEach(elem => im.mask(elem));
+
+    // send message to telegramm
+    const forms = document.querySelectorAll('.form-to-telegramm');
+
+    for (let i = 0; i < forms.length; i += 1) {
+        const currentForm = forms[i];
+        const currentFormId = currentForm.id;
+
+        // validator for form
+        const validation = new JustValidate(`#${currentFormId}`);
+
+        validation
+            .addField('.name', [
+                {
+                    rule: 'required',
+                    errorMessage: 'Вы не ввели имя',
+                },
+                {
+                    rule: 'minLength',
+                    value: 2,
+                    errorMessage: 'Минимум 2 символа',
+                },
+                {
+                    rule: 'customRegexp',
+                    value: /^[а-яА-Яa-zA-Z]+$/,
+                    errorMessage: 'Недопустимый формат',
+                },
+            ])
+            .addField('.phone', [
+                {
+                    rule: 'required',
+                    errorMessage: 'Вы не ввели телефон',
+                },
+                {
+                    validator: () => {
+                        const currentInputPhone = currentForm.querySelector('.phone');
+                        const phone = currentInputPhone.inputmask.unmaskedvalue();
+                        return phone.length === 10;
+                    },
+                    errorMessage: 'Введите номер телефона полностью',
+                },
+            ])
+            .onSuccess((event) => {
+                const successMessage = document.createElement('p');
+                successMessage.classList.add('form__success-message');
+                successMessage.textContent = 'Форма отправлена, скоро вам позвонят!';
+                currentForm.querySelector('.form__wrapper').style.display = "none";
+                console.log(currentForm);
+                currentForm.append(successMessage);
+            });
+
+        currentForm.addEventListener('submit', async function (event) {
+            event.preventDefault();
+
+            if (validation.isValid) {
+                let data = {};
+                let fieldsResult = {};
+                let fields = Object.values(currentForm).reduce((obj, field) => {
+                    obj[field.name] = field.value;
+                    return obj
+                }, {});
+
+                for (let key in fields) {
+                    if (key && key !== 'undefined') {
+                        fieldsResult[key] = {
+                            NAME: key,
+                            VALUE: fields[key]
+                        }
+                    }
+                }
+
+                data.FIELDS = fieldsResult;
+
+                fetch("/fetch/send.php", {
+                    body: JSON.stringify({
+                        action: 'send',
+                        "DATA": data,
+                        "ADDITIONAL": currentForm.dataset.additional,
+                    }),
+                    headers: {
+                        'Content-type': 'application/json',
+                    },
+                    method: "POST"
+                }).then(async (resp) => {
+                    event.target.reset();
+                    console.log(await resp.json());
+                });
+            }
+        });
+    }
+
+    // tabs-dropdown
+    const openDropdownTabsList = document.querySelectorAll('.tabs-dropdown__active');
+    const tabsList = document.querySelectorAll('.tab');
+    const tabsDropdownList = document.querySelectorAll('.tabs-dropdown');
+
+    for (let i = 0; i < openDropdownTabsList.length; i += 1) {
+        const currentOpenDropdownTabs = openDropdownTabsList[i];
+
+        currentOpenDropdownTabs.addEventListener('click', function () {
+            currentOpenDropdownTabs.closest('.tabs-dropdown').classList.toggle('active');
+        });
+    }
+
+    for (let i = 0; i < tabsList.length; i += 1) {
+        const currentTab = tabsList[i];
+
+        currentTab.addEventListener('click', function() {
+            const currentTabText = currentTab.textContent;
+            currentTab.closest('.tabs-dropdown').classList.remove('active');
+            currentTab.closest('.tabs-dropdown').querySelector('.tabs-dropdown__name').textContent = currentTabText;
+        });
+    }
+
+    window.addEventListener('click', function (e) {
+        const target = e.target;
+        if (!target.closest('.tabs-dropdown')) {
+            for (let i = 0; i < tabsDropdownList.length; i += 1) {
+                tabsDropdownList[i].classList.remove('active')
+            }
+        }
+    });
 });
